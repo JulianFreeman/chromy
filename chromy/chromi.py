@@ -226,12 +226,16 @@ class ChromInstance(object):
                 self._delete_bookmarks_in_one_folder(child, urls_to_delete, profile)
 
     def delete_bookmarks(self, urls_to_delete: list[str], profile_ids: list[str] = None):
-        # 删除书签总归还是要处理文件的，所以这里循环 profiles，而不是循环 bookmarks
-        # 虽然看起来循环 bookmarks 更简单，但是这样就需要多次打开文件，
-        # 或者维护一个 profile 到书签文件数据的字典，太繁琐
+        # 原理参考删除插件的函数注释
+        default_profile_ids = set()
+        for url in urls_to_delete:
+            if url in self.bookmarks:
+                default_profile_ids = set(self.bookmarks[url].profiles.keys()).union(default_profile_ids)
 
         if profile_ids is None:
-            profile_ids = self.profiles.keys()
+            profile_ids = default_profile_ids
+        else:
+            profile_ids = default_profile_ids.intersection(profile_ids)
 
         for profile_id in profile_ids:
             profile = self.profiles[profile_id]
@@ -357,8 +361,18 @@ class ChromInstance(object):
                 shutil.rmtree(ext_dir, ignore_errors=True)
 
     def delete_extensions(self, ext_ids_to_delete: list[str], profile_ids: list[str] = None):
+        # 若插件A存在于 1、2、3，插件B存在于 2、3、4，那么一共要操作的用户是 1、2、3、4
+        # 这里是取并集
+        default_profile_ids = set()
+        for ext_id in ext_ids_to_delete:
+            if ext_id in self.extensions:
+                default_profile_ids = self.extensions[ext_id].profiles.union(default_profile_ids)
+
+        # 但是如果指定了可操作的用户范围，比如只处理 2、3 两个用户的，那么就是取交集了
         if profile_ids is None:
-            profile_ids = self.profiles.keys()
+            profile_ids = default_profile_ids
+        else:
+            profile_ids = default_profile_ids.intersection(profile_ids)
 
         for profile_id in profile_ids:
             profile = self.profiles[profile_id]
