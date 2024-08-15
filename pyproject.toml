@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+
+name = "chromy"
+description = "一个处理以 Chromium 为核心的浏览器用户数据的 Python 库"
+authors = [
+    {name = "Julian Freeman", email = "freemanjulian372@gmail.com"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+
+dependencies = [
+    "jnp3 @ https://github.com/JulianFreeman/jnp3/releases/download/v0.2.0/jnp3-0.2.0-py3-none-any.whl",
+]
+requires-python = ">=3.10"
+
+[tool.setuptools.dynamic]
+version = {attr = "chromy.__version__"}
