@@ -1,5 +1,6 @@
 # coding: utf8
 import json
+import shutil
 from os import PathLike
 from pathlib import Path
 
@@ -36,7 +37,7 @@ class ChromInstance(object):
 
         profiles_info: dict[str, dict] = get_with_chained_keys(local_state_data, ["profile", "info_cache"])
         if profiles_info is None:
-            print(f'[READ] [{local_state_data}] does not contain profile/info_cache')
+            print(f'[READ] [{local_state_file}] does not contain profile/info_cache')
             return
 
         self.profiles.clear()
@@ -53,17 +54,18 @@ class ChromInstance(object):
             )
             self.profiles[profile_id] = profile
 
-    def _fetch_extensions_from_one_profile(self, ext_settings: dict, profile: Profile):
+    def _fetch_extensions_from_settings(self, ext_settings: dict, profile: Profile):
         for ext_id in ext_settings:
             if ext_id in self.extensions:
                 profile.extensions.add(ext_id)
                 self.extensions[ext_id].profiles.add(profile.id)
                 continue
 
-            ext_dir = Path(profile.profile_dir, "Extensions")
-            if not ext_dir.is_dir():
-                print(f'[READ] [{ext_dir}] is not a directory or does not exist')
+            extensions_dir = Path(profile.profile_dir, "Extensions")
+            if not extensions_dir.is_dir():
+                print(f'[READ] [{extensions_dir}] is not a directory or does not exist')
                 continue
+            profile.extensions_dir = str(extensions_dir)
 
             ext_set = ext_settings[ext_id]
             # path 不存在的就不算了，为空的判断不能并入下面的判断中
@@ -76,10 +78,10 @@ class ChromInstance(object):
                 manifest_file = Path(ext_path, "manifest.json")
                 manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
                 icon_parent_path = Path(ext_path)
-            elif path_exists(ext_dir / ext_path):
+            elif path_exists(extensions_dir / ext_path):
                 # 是在线安装的插件
                 manifest_data = ext_set.get("manifest", {})
-                icon_parent_path = ext_dir / ext_path
+                icon_parent_path = extensions_dir / ext_path
             else:
                 # 可能是一些谷歌内部插件，没有完整信息，就不管了
                 continue
@@ -97,29 +99,50 @@ class ChromInstance(object):
             )
             profile.extensions.add(ext_id)
 
+    def _fetch_extensions_from_preferences(self, either_pref_file: Path, profile: Profile):
+        try:
+            either_pref_data: dict = json.loads(either_pref_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            print(f'[READ] [{either_pref_file}] is not valid JSON')
+            return
+
+        ext_settings: dict[str, dict] = get_with_chained_keys(either_pref_data, ["extensions", "settings"])
+        if ext_settings is None:
+            # 怪烦人的，不要了，一般也用不到
+            # print(f'[READ] [{either_pref_file}] does not contain extensions/settings')
+            return
+
+        self._fetch_extensions_from_settings(ext_settings, profile)
+
+    # 这里一定要从两个设置文件获取插件，是因为这一步同时也要
+    # 确保 Preferences 和 Secure Preferences 文件都填充到 Profile 中
+    # 貌似功能有点不单一，不过就这样吧
+
+    def _fetch_extensions_in_pref(self, profile: Profile):
+        pref_file = Path(profile.profile_dir, "Preferences")
+        if not pref_file.is_file():
+            print(f'[READ] [{pref_file}] is not a file or does not exist')
+            return
+        profile.pref_file = str(pref_file)
+
+        self._fetch_extensions_from_preferences(pref_file, profile)
+
+    def _fetch_extensions_in_secure_pref(self, profile: Profile):
+        secure_pref_file = Path(profile.profile_dir, "Secure Preferences")
+        if not secure_pref_file.is_file():
+            print(f'[READ] [{secure_pref_file}] is not a file or does not exist')
+            return
+        profile.secure_pref_file = str(secure_pref_file)
+
+        self._fetch_extensions_from_preferences(secure_pref_file, profile)
+
     def fetch_extensions_from_all_profiles(self):
         self.extensions.clear()
         for profile_id in self.profiles:
             profile = self.profiles[profile_id]
-            profile_dir = Path(profile.profile_dir)
 
-            secure_pref_file = profile_dir / "Secure Preferences"
-            if not secure_pref_file.is_file():
-                print(f'[READ] [{secure_pref_file}] is not a file or does not exist')
-                continue
-
-            try:
-                secure_pref_data: dict = json.loads(secure_pref_file.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                print(f'[READ] [{secure_pref_file}] is not valid JSON')
-                continue
-
-            ext_settings: dict[str, dict] = get_with_chained_keys(secure_pref_data, ["extensions", "settings"])
-            if ext_settings is None:
-                print(f'[READ] [{secure_pref_data}] does not contain extensions/settings')
-                continue
-
-            self._fetch_extensions_from_one_profile(ext_settings, profile)
+            self._fetch_extensions_in_pref(profile)  # 一般来说这里是没有插件的，为了兼容考虑
+            self._fetch_extensions_in_secure_pref(profile)
 
     def _fetch_bookmarks_from_one_type(
             self,
@@ -169,7 +192,7 @@ class ChromInstance(object):
 
             bookmarks_info: dict[str, dict] = get_with_chained_keys(bookmark_data, ["roots"])
             if bookmarks_info is None:
-                print(f'[READ] [{bookmark_data}] does not contain roots')
+                print(f'[READ] [{bookmark_file}] does not contain roots')
                 continue
 
             for bmk_type in bookmarks_info:
@@ -202,7 +225,7 @@ class ChromInstance(object):
             else:
                 self._delete_bookmarks_in_one_folder(child, urls_to_delete, profile)
 
-    def delete_bookmarks_from_profiles(self, urls_to_delete: list[str], profile_ids: list[str] = None):
+    def delete_bookmarks(self, urls_to_delete: list[str], profile_ids: list[str] = None):
         # 删除书签总归还是要处理文件的，所以这里循环 profiles，而不是循环 bookmarks
         # 虽然看起来循环 bookmarks 更简单，但是这样就需要多次打开文件，
         # 或者维护一个 profile 到书签文件数据的字典，太繁琐
@@ -246,3 +269,99 @@ class ChromInstance(object):
             if url_contains in url and len(set(bookmark.profiles.keys()).intersection(profile_ids)) != 0:
                 filtered_bookmarks[url] = bookmark
         return filtered_bookmarks
+
+    def _delete_extension_from_preferences(
+            self,
+            either_pref_file: Path,
+            ext_ids: list[str],
+            profile: Profile,
+            special_parts_path: list[str],  # 要么是 ["protection", "macs", ...] 要么是 [..., "pinned_extensions"]
+    ):
+        # 在 Secure Preferences 或者 Preferences 中删除插件数据
+
+        try:
+            either_pref_data: dict = json.loads(either_pref_file.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            print(f'[DELETE] [{either_pref_file}] is not valid JSON')
+            return
+
+        ext_settings: dict[str, dict] = get_with_chained_keys(either_pref_data, ["extensions", "settings"])
+        if ext_settings is not None:
+            for ext_id in ext_ids:
+                if ext_id in ext_settings:
+                    ext_settings.pop(ext_id)
+                    # 更新 Profiles
+                    if ext_id in profile.extensions:
+                        profile.extensions.remove(ext_id)
+                    # 更新 Extensions
+                    if ext_id in self.extensions and profile.id in self.extensions[ext_id].profiles:
+                        self.extensions[ext_id].profiles.remove(profile.id)
+                        if len(self.extensions[ext_id].profiles) == 0:
+                            self.extensions.pop(ext_id)
+                    print(f"[DELETE] deleted {ext_id} from {profile.id}")
+        # else:
+            # 太多信息，不要了
+            # print(f'[DELETE] [{either_pref_file}] does not contain extensions/settings, maybe check another')
+
+        # 要么是 ["protection", "macs", "extensions", "settings"] 要么是 ["extensions", "pinned_extensions"]
+        special_parts: dict[str, str] | list[str] = get_with_chained_keys(either_pref_data, special_parts_path)
+        if special_parts is not None:
+            # 没办法，一个是字典，一个是列表，两者的删除方法不一样
+            if isinstance(special_parts, list):
+                delete_func = special_parts.remove
+            else:
+                delete_func = special_parts.pop
+
+            for ext_id in ext_ids:
+                if ext_id in special_parts:
+                    delete_func(ext_id)
+        # else:
+            # 太多信息，不要了
+            # print(f'[DELETE] [{either_pref_file}] does not contain {"/".join(special_parts_path)}')
+
+        either_pref_file.write_text(json.dumps(either_pref_data, ensure_ascii=False, indent=4), encoding="utf-8")
+
+    def _delete_extensions_in_secure_pref(self, ext_ids: list[str], profile: Profile):
+        if len(profile.secure_pref_file) == 0:
+            return
+        secure_pref_file = Path(profile.secure_pref_file)
+
+        self._delete_extension_from_preferences(
+            secure_pref_file,
+            ext_ids,
+            profile,
+            ["protection", "macs", "extensions", "settings"],
+        )
+
+    def _delete_extensions_in_pref(self, ext_ids: list[str], profile: Profile):
+        if len(profile.pref_file) == 0:
+            return
+        pref_file = Path(profile.pref_file)
+
+        self._delete_extension_from_preferences(
+            pref_file,
+            ext_ids,
+            profile,
+            ["extensions", "pinned_extensions"],
+        )
+
+    @staticmethod
+    def _delete_extensions_from_disk(ext_ids: list[str], profile: Profile):
+        if len(profile.extensions_dir) == 0:
+            return
+
+        for ext_id in ext_ids:
+            ext_dir = Path(profile.extensions_dir, ext_id)
+            # 如果是离线装的，这个路径就是不存在的，不过我们也不删离线插件的源插件包
+            if ext_dir.exists():
+                shutil.rmtree(ext_dir, ignore_errors=True)
+
+    def delete_extensions(self, ext_ids_to_delete: list[str], profile_ids: list[str] = None):
+        if profile_ids is None:
+            profile_ids = self.profiles.keys()
+
+        for profile_id in profile_ids:
+            profile = self.profiles[profile_id]
+            self._delete_extensions_in_secure_pref(ext_ids_to_delete, profile)
+            self._delete_extensions_in_pref(ext_ids_to_delete, profile)
+            self._delete_extensions_from_disk(ext_ids_to_delete, profile)

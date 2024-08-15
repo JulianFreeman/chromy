@@ -22,15 +22,18 @@ class Bookmark(object):
 
 @dataclass
 class Profile(object):
-    id: str                  # 浏览器的唯一编号，形如 Profile 185
-    name: str                # 浏览器用户名称
-    user_name: str           # 账号邮箱地址
-    gaia_name: str           # 谷歌账号全名
-    gaia_given_name: str     # 谷歌账号单名
+    id: str                     # 浏览器的唯一编号，形如 Profile 185
+    name: str                   # 浏览器用户名称
+    user_name: str              # 账号邮箱地址
+    gaia_name: str              # 谷歌账号全名
+    gaia_given_name: str        # 谷歌账号单名
 
-    userdata_dir: str        # 该用户的上层 User Data 路径，形如 .../User Data
-    profile_dir: str         # 该用户的数据路径，形如 .../User Data/Profile 185
-    bookmark_file: str = ""  # 该用户的书签路径，形如 .../User Data/Profile 185/Bookmarks，不存在则为空
+    userdata_dir: str           # 该用户的上层 User Data 路径，形如 .../User Data
+    profile_dir: str            # 数据路径，形如 .../User Data/Profile 185
+    extensions_dir: str = ""     # 插件路径，形如 .../User Data/Profile 185/Extensions
+    bookmark_file: str = ""     # 书签路径，形如 .../User Data/Profile 185/Bookmarks，不存在则为空
+    pref_file: str = ""         # 偏好设置路径，形如 .../User Data/Profile 185/Preferences
+    secure_pref_file: str = ""  # 安全偏好设置路径，形如 .../User Data/Profile 185/Secure Preferences
 
     extensions: set[str] = field(default_factory=set)        # element: 形如 cfnpidifppmenkapgihekkeednfoenal
     bookmarks: dict[str, str] = field(default_factory=dict)  # key: url, value: 书签路径
