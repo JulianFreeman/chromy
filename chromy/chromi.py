@@ -69,9 +69,12 @@ class ChromInstance(object):
 
             ext_set = ext_settings[ext_id]
             # path 不存在的就不算了，为空的判断不能并入下面的判断中
-            ext_path = ext_set.get("path", "")
+            ext_path: str = ext_set.get("path", "")
             if len(ext_path) == 0:
                 continue
+            # 以防万一，见下面 icon 路径的注释
+            if ext_path.startswith("/"):
+                ext_path = ext_path[1:]
 
             if path_exists(ext_path):
                 # 是离线安装的插件
@@ -88,6 +91,9 @@ class ChromInstance(object):
 
             icons_info: dict = manifest_data.get("icons", {})
             icon_short_path = icons_info.get(str(max(map(int, icons_info.keys()), default="")), "")
+            # 如果以 / 开头，会被 Path 转成根路径，所以去掉
+            if icon_short_path.startswith("/"):
+                icon_short_path = icon_short_path[1:]
             icon_path = icon_parent_path / icon_short_path
 
             self.extensions[ext_id] = Extension(
