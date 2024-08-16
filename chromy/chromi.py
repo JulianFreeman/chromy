@@ -76,17 +76,21 @@ class ChromInstance(object):
             if ext_path.startswith("/"):
                 ext_path = ext_path[1:]
 
-            if path_exists(ext_path):
-                # 是离线安装的插件
-                manifest_file = Path(ext_path, "manifest.json")
-                manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
-                icon_parent_path = Path(ext_path)
-            elif path_exists(extensions_dir / ext_path):
-                # 是在线安装的插件
+            if ext_path.startswith(ext_id):
+                # 是应用商店安装的插件
                 manifest_data = ext_set.get("manifest", {})
                 icon_parent_path = extensions_dir / ext_path
+            elif path_exists(ext_path):
+                # 可能是离线安装的插件，也可能不是
+                manifest_file = Path(ext_path, "manifest.json")
+                if not manifest_file.exists():
+                    # 可能是些内部的插件，但是路径有问题
+                    continue
+
+                manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+                icon_parent_path = Path(ext_path)
             else:
-                # 可能是一些谷歌内部插件，没有完整信息，就不管了
+                # 可能是一些内部插件，没有完整信息，就不管了
                 continue
 
             icons_info: dict = manifest_data.get("icons", {})
