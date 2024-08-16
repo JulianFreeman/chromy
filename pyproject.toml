@@ -14,7 +14,7 @@ readme = "README.md"
 license = {file = "LICENSE"}
 
 dependencies = [
-    "jnp3 @ https://github.com/JulianFreeman/jnp3/releases/download/v0.2.0/jnp3-0.2.0-py3-none-any.whl",
+    "jnp3 @ https://github.com/JulianFreeman/jnp3/releases/download/v0.3.1/jnp3-0.3.1-py3-none-any.whl",
 ]
 requires-python = ">=3.10"
 
