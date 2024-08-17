@@ -25,7 +25,7 @@ EXEC_PATH_MAP = {
         "brave": r"/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
         "vivaldi": r"/Applications/Vivaldi.app/Contents/MacOS/Vivaldi",
         "yandex": r"/Applications/Yandex.app/Contents/MacOS/Yandex",
-        # "chromium": # 没有
+        "chromium": r"/Applications/Chromium.app/Contents/MacOS/Chromium",
     },
 }
 

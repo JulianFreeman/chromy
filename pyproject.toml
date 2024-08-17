@@ -11,12 +11,22 @@ authors = [
     {name = "Julian Freeman", email = "freemanjulian372@gmail.com"}
 ]
 readme = "README.md"
-license = {file = "LICENSE"}
 
 dependencies = [
-    "jnp3 @ https://github.com/JulianFreeman/jnp3/releases/download/v0.3.1/jnp3-0.3.1-py3-none-any.whl",
+    "jnp3>=0.3.1",
 ]
 requires-python = ">=3.10"
+
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/JulianFreeman/chromy"
+Repository = "https://github.com/JulianFreeman/chromy.git"
+Changelog = "https://github.com/JulianFreeman/chromy/blob/main/CHANGELOG.md"
 
 [tool.setuptools.dynamic]
 version = {attr = "chromy.__version__"}
