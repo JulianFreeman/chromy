@@ -1,6 +1,7 @@
 # coding: utf8
 import json
 import shutil
+from logging import Logger
 from os import PathLike
 from pathlib import Path
 
@@ -10,10 +11,35 @@ from jnp3.path import path_exists
 from .structs import Extension, Bookmark, Profile
 
 
+class FakeLogger(object):
+    """当没有提供 Logger 时占位用的"""
+
+    def debug(self, msg: str):
+        pass
+
+    def info(self, msg: str):
+        pass
+
+    def warning(self, msg: str):
+        pass
+
+    def error(self, msg: str):
+        pass
+
+    def critical(self, msg: str):
+        pass
+
+
 class ChromInstance(object):
 
-    def __init__(self, userdata_dir: str | PathLike[str]):
+    def __init__(
+            self,
+            userdata_dir: str | PathLike[str],
+            logger: Logger = None,
+    ):
         self.userdata_dir = userdata_dir
+        self.logger = logger or FakeLogger()
+
         self.profiles: dict[str, Profile] = {}
         self.extensions: dict[str, Extension] = {}
         self.bookmarks: dict[str, Bookmark] = {}
@@ -21,23 +47,23 @@ class ChromInstance(object):
     def fetch_all_profiles(self):
         userdata_dir: Path = Path(self.userdata_dir)
         if not userdata_dir.is_dir():
-            print(f'[READ] [{userdata_dir}] is not a directory or does not exist')
+            self.logger.warning(f'[READ] [{userdata_dir}] is not a directory or does not exist')
             return
 
         local_state_file = userdata_dir / "Local State"
         if not local_state_file.is_file():
-            print(f'[READ] [{local_state_file}] is not a file or does not exist')
+            self.logger.warning(f'[READ] [{local_state_file}] is not a file or does not exist')
             return
 
         try:
             local_state_data: dict = json.loads(local_state_file.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
-            print(f'[READ] [{local_state_file}] is not valid JSON')
+            self.logger.warning(f'[READ] [{local_state_file}] is not valid JSON')
             return
 
         profiles_info: dict[str, dict] = get_with_chained_keys(local_state_data, ["profile", "info_cache"])
         if profiles_info is None:
-            print(f'[READ] [{local_state_file}] does not contain profile/info_cache')
+            self.logger.warning(f'[READ] [{local_state_file}] does not contain profile/info_cache')
             return
 
         self.profiles.clear()
@@ -63,7 +89,7 @@ class ChromInstance(object):
 
             extensions_dir = Path(profile.profile_dir, "Extensions")
             if not extensions_dir.is_dir():
-                print(f'[READ] [{extensions_dir}] is not a directory or does not exist')
+                self.logger.warning(f'[READ] [{extensions_dir}] is not a directory or does not exist')
                 continue
             profile.extensions_dir = str(extensions_dir)
 
@@ -113,13 +139,13 @@ class ChromInstance(object):
         try:
             either_pref_data: dict = json.loads(either_pref_file.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
-            print(f'[READ] [{either_pref_file}] is not valid JSON')
+            self.logger.warning(f'[READ] [{either_pref_file}] is not valid JSON')
             return
 
         ext_settings: dict[str, dict] = get_with_chained_keys(either_pref_data, ["extensions", "settings"])
         if ext_settings is None:
             # 怪烦人的，不要了，一般也用不到
-            # print(f'[READ] [{either_pref_file}] does not contain extensions/settings')
+            # self.logger.warning(f'[READ] [{either_pref_file}] does not contain extensions/settings')
             return
 
         self._fetch_extensions_from_settings(ext_settings, profile)
@@ -131,7 +157,7 @@ class ChromInstance(object):
     def _fetch_extensions_in_pref(self, profile: Profile):
         pref_file = Path(profile.profile_dir, "Preferences")
         if not pref_file.is_file():
-            print(f'[READ] [{pref_file}] is not a file or does not exist')
+            self.logger.warning(f'[READ] [{pref_file}] is not a file or does not exist')
             return
         profile.pref_file = str(pref_file)
 
@@ -140,7 +166,7 @@ class ChromInstance(object):
     def _fetch_extensions_in_secure_pref(self, profile: Profile):
         secure_pref_file = Path(profile.profile_dir, "Secure Preferences")
         if not secure_pref_file.is_file():
-            print(f'[READ] [{secure_pref_file}] is not a file or does not exist')
+            self.logger.warning(f'[READ] [{secure_pref_file}] is not a file or does not exist')
             return
         profile.secure_pref_file = str(secure_pref_file)
 
@@ -190,19 +216,19 @@ class ChromInstance(object):
             bookmark_file = profile_dir / "Bookmarks"
             if not bookmark_file.is_file():
                 # 如果一个浏览器没有书签，那么该文件就不存在
-                print(f'[READ] [{bookmark_file}] is not a file or does not exist')
+                self.logger.warning(f'[READ] [{bookmark_file}] is not a file or does not exist')
                 continue
             profile.bookmark_file = str(bookmark_file)
 
             try:
                 bookmark_data: dict = json.loads(bookmark_file.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
-                print(f'[READ] [{bookmark_file}] is not valid JSON')
+                self.logger.warning(f'[READ] [{bookmark_file}] is not valid JSON')
                 continue
 
             bookmarks_info: dict[str, dict] = get_with_chained_keys(bookmark_data, ["roots"])
             if bookmarks_info is None:
-                print(f'[READ] [{bookmark_file}] does not contain roots')
+                self.logger.warning(f'[READ] [{bookmark_file}] does not contain roots')
                 continue
 
             for bmk_type in bookmarks_info:
@@ -231,7 +257,7 @@ class ChromInstance(object):
                         if len(self.bookmarks[url].profiles) == 0:
                             self.bookmarks.pop(url)
 
-                    print(f"[DELETE] deleted {url} from {profile.id}")
+                    self.logger.info(f"[DELETE] deleted {url} from {profile.id}")
             else:
                 self._delete_bookmarks_in_one_folder(child, urls_to_delete, profile)
 
@@ -261,7 +287,7 @@ class ChromInstance(object):
             try:
                 bookmark_data: dict = json.loads(bookmark_file.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
-                print(f'[DELETE] [{bookmark_file}] is not valid JSON')
+                self.logger.warning(f'[DELETE] [{bookmark_file}] is not valid JSON')
                 continue
 
             if "checksum" in bookmark_data:
@@ -296,7 +322,7 @@ class ChromInstance(object):
         try:
             either_pref_data: dict = json.loads(either_pref_file.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
-            print(f'[DELETE] [{either_pref_file}] is not valid JSON')
+            self.logger.info(f'[DELETE] [{either_pref_file}] is not valid JSON')
             return
 
         ext_settings: dict[str, dict] = get_with_chained_keys(either_pref_data, ["extensions", "settings"])
@@ -312,10 +338,10 @@ class ChromInstance(object):
                         self.extensions[ext_id].profiles.remove(profile.id)
                         if len(self.extensions[ext_id].profiles) == 0:
                             self.extensions.pop(ext_id)
-                    print(f"[DELETE] deleted {ext_id} from {profile.id}")
+                    self.logger.info(f"[DELETE] deleted {ext_id} from {profile.id}")
         # else:
             # 太多信息，不要了
-            # print(f'[DELETE] [{either_pref_file}] does not contain extensions/settings, maybe check another')
+            # self.logger.warning(f'[DELETE] [{either_pref_file}] does not contain extensions/settings, maybe check another')
 
         # 要么是 ["protection", "macs", "extensions", "settings"] 要么是 ["extensions", "pinned_extensions"]
         special_parts: dict[str, str] | list[str] = get_with_chained_keys(either_pref_data, special_parts_path)
@@ -331,7 +357,7 @@ class ChromInstance(object):
                     delete_func(ext_id)
         # else:
             # 太多信息，不要了
-            # print(f'[DELETE] [{either_pref_file}] does not contain {"/".join(special_parts_path)}')
+            # self.logger.warning(f'[DELETE] [{either_pref_file}] does not contain {"/".join(special_parts_path)}')
 
         either_pref_file.write_text(json.dumps(either_pref_data, ensure_ascii=False, indent=4), encoding="utf-8")
 

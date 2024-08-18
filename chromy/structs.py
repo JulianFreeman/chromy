@@ -30,7 +30,7 @@ class Profile(object):
 
     userdata_dir: str           # 该用户的上层 User Data 路径，形如 .../User Data
     profile_dir: str            # 数据路径，形如 .../User Data/Profile 185
-    extensions_dir: str = ""     # 插件路径，形如 .../User Data/Profile 185/Extensions
+    extensions_dir: str = ""    # 插件路径，形如 .../User Data/Profile 185/Extensions
     bookmark_file: str = ""     # 书签路径，形如 .../User Data/Profile 185/Bookmarks，不存在则为空
     pref_file: str = ""         # 偏好设置路径，形如 .../User Data/Profile 185/Preferences
     secure_pref_file: str = ""  # 安全偏好设置路径，形如 .../User Data/Profile 185/Secure Preferences
