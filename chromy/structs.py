@@ -22,11 +22,15 @@ class Bookmark(object):
 
 @dataclass
 class Profile(object):
-    id: str                     # 浏览器的唯一编号，形如 Profile 185
-    name: str                   # 浏览器用户名称
-    user_name: str              # 账号邮箱地址
-    gaia_name: str              # 谷歌账号全名
-    gaia_given_name: str        # 谷歌账号单名
+    id: str                           # 浏览器的唯一编号，形如 Profile 185
+    name: str                         # 浏览器用户名称
+    user_name: str                    # 账号邮箱地址
+    gaia_name: str                    # 谷歌账号全名
+    gaia_given_name: str              # 谷歌账号单名
+    avatar_icon: str                  # 默认图标名称
+    default_avatar_fill_color: int    # 默认无图标时的填充色
+    default_avatar_stroke_color: int  # 默认无图标时的前景色
+    gaia_picture_file_name: str       # 头像图片路径，如果有
 
     userdata_dir: str           # 该用户的上层 User Data 路径，形如 .../User Data
     profile_dir: str            # 数据路径，形如 .../User Data/Profile 185

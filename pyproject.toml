@@ -13,7 +13,7 @@ authors = [
 readme = "README.md"
 
 dependencies = [
-    "jnp3>=0.3.1",
+    "jnp3>=0.3.5",
 ]
 requires-python = ">=3.10"
 

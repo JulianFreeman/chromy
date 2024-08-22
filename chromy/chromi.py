@@ -7,27 +7,9 @@ from pathlib import Path
 
 from jnp3.dict import get_with_chained_keys
 from jnp3.path import path_exists
+from jnp3.misc import FakeLogger
 
 from .structs import Extension, Bookmark, Profile
-
-
-class FakeLogger(object):
-    """当没有提供 Logger 时占位用的"""
-
-    def debug(self, msg: str):
-        pass
-
-    def info(self, msg: str):
-        pass
-
-    def warning(self, msg: str):
-        pass
-
-    def error(self, msg: str):
-        pass
-
-    def critical(self, msg: str):
-        pass
 
 
 class ChromInstance(object):
@@ -69,12 +51,20 @@ class ChromInstance(object):
         self.profiles.clear()
         for profile_id in profiles_info:
             profile_info = profiles_info[profile_id]
+            avatar_icon = profile_info.get("avatar_icon", "")
+            if len(avatar_icon) != 0:
+                avatar_icon = Path(avatar_icon).name
+
             profile = Profile(
                 id=profile_id,
                 name=profile_info.get("name", ""),
                 user_name=profile_info.get("user_name", ""),
                 gaia_name=profile_info.get("gaia_name", ""),
                 gaia_given_name=profile_info.get("gaia_given_name", ""),
+                avatar_icon=avatar_icon,
+                default_avatar_fill_color=profile_info.get("default_avatar_fill_color", -4278190081),  # 默认透明色
+                default_avatar_stroke_color=profile_info.get("default_avatar_stroke_color", -1),       # 默认白色
+                gaia_picture_file_name=profile_info.get("gaia_picture_file_name", ""),
                 userdata_dir=str(userdata_dir),
                 profile_dir=str(userdata_dir / profile_id),  # 这里我们认为肯定存在
             )
