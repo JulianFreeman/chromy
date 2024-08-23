@@ -9,6 +9,8 @@ class Extension(object):
     description: str  # 插件描述
     icon: str         # 插件图标绝对路径
 
+    raw_data: dict    # 原始数据，即 Secure Preferences 中 extensions/settings/cfnpidifppmenkapgihekkeednfoenal 的值
+
     profiles: set[str] = field(default_factory=set)  # element: 形如 Profile 185
 
 
@@ -34,7 +36,10 @@ class Profile(object):
 
     userdata_dir: str           # 该用户的上层 User Data 路径，形如 .../User Data
     profile_dir: str            # 数据路径，形如 .../User Data/Profile 185
-    extensions_dir: str = ""    # 插件路径，形如 .../User Data/Profile 185/Extensions
+
+    raw_data: dict              # 原始 JSON 数据，即 Local State 下 profile/info_cache/Profile 185 的值
+
+    extensions_dir: str = ""    # 插件路径，形如 .../User Data/Profile 185/Extensions，不存在则为空
     bookmark_file: str = ""     # 书签路径，形如 .../User Data/Profile 185/Bookmarks，不存在则为空
     pref_file: str = ""         # 偏好设置路径，形如 .../User Data/Profile 185/Preferences
     secure_pref_file: str = ""  # 安全偏好设置路径，形如 .../User Data/Profile 185/Secure Preferences

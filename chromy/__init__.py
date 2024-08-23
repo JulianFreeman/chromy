@@ -3,7 +3,7 @@ from .chromi import ChromInstance
 from .structs import Extension, Bookmark, Profile
 from .paths import get_browser_data_path, get_browser_exec_path
 
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 __version__info__ = tuple(map(int, __version__.split(".")))
 
 

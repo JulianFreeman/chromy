@@ -67,6 +67,7 @@ class ChromInstance(object):
                 gaia_picture_file_name=profile_info.get("gaia_picture_file_name", ""),
                 userdata_dir=str(userdata_dir),
                 profile_dir=str(userdata_dir / profile_id),  # 这里我们认为肯定存在
+                raw_data=profile_info,
             )
             self.profiles[profile_id] = profile
 
@@ -122,6 +123,7 @@ class ChromInstance(object):
                 description=manifest_data.get("description", ""),
                 icon=str(icon_path) if icon_path.is_file() else "",
                 profiles={profile.id, },
+                raw_data=ext_set,
             )
             profile.extensions.add(ext_id)
 
