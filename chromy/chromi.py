@@ -104,7 +104,12 @@ class ChromInstance(object):
                     # 可能是些内部的插件，但是路径有问题
                     continue
 
-                manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+                try:
+                    manifest_data = json.loads(manifest_file.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    self.logger.warning(f'[READ] [{manifest_file}] is not valid JSON')
+                    continue
+                
                 icon_parent_path = Path(ext_path)
             else:
                 # 可能是一些内部插件，没有完整信息，就不管了
